@@ -3,11 +3,8 @@ package registry
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
-	"strings"
 )
 
 var (
@@ -45,7 +42,8 @@ func (registry *Registry) getPaginatedJson(url string, response interface{}) (st
 	if err != nil {
 		return "", err
 	}
-	return getNextLink(resp)
+	newUrl, err := getNextLink(resp)
+	return registry.URL + newUrl, err
 }
 
 // Matches an RFC 5988 (https://tools.ietf.org/html/rfc5988#section-5)
@@ -62,16 +60,7 @@ func getNextLink(resp *http.Response) (string, error) {
 	for _, link := range resp.Header[http.CanonicalHeaderKey("Link")] {
 		parts := nextLinkRE.FindStringSubmatch(link)
 		if parts != nil {
-			urlPath, err := url.QueryUnescape(parts[1])
-			if err != nil {
-				return "", err
-			}
-			if strings.HasPrefix(urlPath, "/") {
-				reqUrl := resp.Request.URL
-				return fmt.Sprintf("%s://%s%s", reqUrl.Scheme, reqUrl.Host, urlPath), nil
-			} else {
-				return urlPath, nil
-			}
+			return parts[1], nil
 		}
 	}
 	return "", ErrNoMorePages
